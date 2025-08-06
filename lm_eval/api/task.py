@@ -795,9 +795,7 @@ class Task(abc.ABC):
 
         for fs_doc in self.sampler.sample(
             n=num_fewshot,
-            exclude=doc
-            if self.config.fewshot_split == self.config.test_split
-            else None,
+            doc=doc if self.config.fewshot_split == self.config.test_split else None,
         ):
             messages += self._doc_to_message_pair(fs_doc, gen_prefix)
 

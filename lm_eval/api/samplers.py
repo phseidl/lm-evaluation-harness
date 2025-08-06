@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import logging
 from random import Random
-from typing import Any, Optional
+from typing import TYPE_CHECKING
 
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Any, TypeVar
 
 eval_logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 
 class ContextSampler:
@@ -20,18 +26,16 @@ class ContextSampler:
         self.docs = docs
         self.fewshot_indices = fewshot_indices
 
-        if self.fewshot_indices and self.docs:
+        if self.fewshot_indices:
             self.docs = [self.docs[i] for i in self.fewshot_indices]
 
-    def sample(
-        self, n: int, exclude: Optional[dict[str, Any]] = None, **kwargs
-    ) -> list[dict]:
+    def sample(self, n: int, doc: dict[str, Any] | None = None, **kwargs) -> list[dict]:
         """
         Sample n documents from the pool.
 
         Args:
             n: Number of documents to sample
-            exclude: Optional document to exclude from sampling
+            doc: Optional document to exclude from sampling
 
         Returns:
             List of sampled documents
@@ -42,20 +46,20 @@ class ContextSampler:
             return []
         return (
             self.rnd.sample(self.docs, sample_size)
-            if not exclude
-            else [
-                doc
-                for doc in self.rnd.sample(self.docs, sample_size + 1)
-                if doc != exclude
-            ]
+            if not doc
+            else self.remove_doc(doc, self.docs)
         )
 
     def set_rnd(self, rnd: int) -> None:
         self.rnd = Random(rnd)
 
+    @staticmethod
+    def remove_doc(doc: _T, _iter: Iterable[_T]) -> list[_T]:
+        return [x for x in _iter if x != doc]
+
 
 class FirstNSampler(ContextSampler):
-    def sample(self, n: int, **kwargs) -> list[dict]:
+    def sample(self, n: int, doc=None, **kwargs):
         """
         Draw the first `n` samples in order from the specified split.
         Used for tasks with "canonical" ordered fewshot examples, such as MMLU and CMMLU.
@@ -67,19 +71,19 @@ class FirstNSampler(ContextSampler):
 
 
 class BalancedSampler(ContextSampler):
-    def sample(self, n: int, **kwargs) -> list[dict]:
+    def sample(self, n: int, doc=None, **kwargs):
         """
         TODO: this should return approximately class-balanced samples from our fewshot examples.
         TODO: what order should they be in? maybe random?
         """
 
-        pass
+        raise NotImplementedError
 
 
 class ManualSampler(ContextSampler):
-    def sample(self, n: int, **kwargs) -> None:
+    def sample(self, n: int, doc=None, **kwargs):
         """ """
-        pass
+        raise NotImplementedError
 
 
 SAMPLER_REGISTRY: dict[str, type[ContextSampler]] = {
